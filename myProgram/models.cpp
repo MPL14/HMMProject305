@@ -3,9 +3,15 @@
 #include <cstring>
 #include <iostream>
 #include <fstream>
-#include <conio.h>	
+#include <algorithm>  // For transform
+#include <numeric>    // For accumulate
+#include <cstdlib>    // For abs
+#include <cmath>
+
+//#include <conio.h>	
 
 #include "models.h"
+#include <vector>
 
 using namespace std;
 
@@ -122,12 +128,12 @@ void displayParametersSpellingModel()
 //******************************************************************************
 //******************************************************************************
 
-double prKbHit = 0.9;
+double prKbHit = 0.8;
 //The probability that you want to type a character and you do successfully make it
 //In the setting of the original keyboard model in the project,
 //we make it 0.9, but you can try different values to see the effects.
 
-double prKbMiss = 0.1;
+double prKbMiss = 0.2;
 //The sum of probabilities that you want to type a character but end in touching 
 //a different character.
 //we make it 0.1, but you can try different values to see the effects.
@@ -140,7 +146,7 @@ double prKbMiss = 0.1;
 //we make it 0.2, but you can try different values to see the effects.
 
 
-double kbDegenerateDistancePower = 2;
+double kbDegenerateDistancePower = 3;
 //The likelihood you want to type a character but end in touching a different character
 //is proportion to the inverse of 
 //(kbDegenerateDistancePower) raised to the (distance between them) th power
@@ -213,6 +219,36 @@ double prCharGivenCharOfState(char charGenerated, char charOfTheState)
 	//**************************************************
 	//Replace the following with your own implementation
 	//**************************************************
+
+	if (charGenerated == charOfTheState) {
+		return prKbHit;
+	}
+
+	// Generate missdist array using the range from 1 to 25
+	std::vector<int> diffASCII(25);
+	for (int i = 0; i < 25; ++i) {
+		diffASCII[i] = i + 1;
+	}
+
+	std::vector<double> missdist(25);
+	std::transform(diffASCII.begin(), diffASCII.end(), missdist.begin(), [](int n) {
+		return std::min(n, 26 - n);
+	});
+
+	std::vector<double> exponentialDegrade(25);
+	std::transform(missdist.begin(), missdist.end(), exponentialDegrade.begin(), [](double n) {
+		return std::pow(1.0 / kbDegenerateDistancePower, n);
+	});
+
+	// Calculate constant_x
+	double sum_exponentialDegrade = std::accumulate(exponentialDegrade.begin(), exponentialDegrade.end(), 0.0);
+	double constant_x = prKbMiss / sum_exponentialDegrade;
+
+	// Calculate distASCII_x_y and distKB_x_y
+	int distASCII_x_y = std::abs(static_cast<int>(charGenerated) - static_cast<int>(charOfTheState));
+	int distKB_x_y = std::min(distASCII_x_y, 26 - distASCII_x_y);
+
+	return constant_x * std::pow(1.0 / kbDegenerateDistancePower, distKB_x_y);
 	return 0;
 }
 
