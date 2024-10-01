@@ -225,30 +225,30 @@ double prCharGivenCharOfState(char charGenerated, char charOfTheState)
 	}
 
 	// Generate missdist array using the range from 1 to 25
-	std::vector<int> diffASCII(25);
+	vector<int> diffASCII(25);
 	for (int i = 0; i < 25; ++i) {
 		diffASCII[i] = i + 1;
 	}
 
-	std::vector<double> missdist(25);
-	std::transform(diffASCII.begin(), diffASCII.end(), missdist.begin(), [](int n) {
-		return std::min(n, 26 - n);
+	vector<double> missdist(25);
+	transform(diffASCII.begin(), diffASCII.end(), missdist.begin(), [](int n) {
+		return min(n, 26 - n);
 	});
 
-	std::vector<double> exponentialDegrade(25);
-	std::transform(missdist.begin(), missdist.end(), exponentialDegrade.begin(), [](double n) {
-		return std::pow(1.0 / kbDegenerateDistancePower, n);
+	vector<double> exponentialDegrade(25);
+	transform(missdist.begin(), missdist.end(), exponentialDegrade.begin(), [](double n) {
+		return pow(1.0 / kbDegenerateDistancePower, n);
 	});
 
 	// Calculate constant_x
-	double sum_exponentialDegrade = std::accumulate(exponentialDegrade.begin(), exponentialDegrade.end(), 0.0);
+	double sum_exponentialDegrade = accumulate(exponentialDegrade.begin(), exponentialDegrade.end(), 0.0);
 	double constant_x = prKbMiss / sum_exponentialDegrade;
 
 	// Calculate distASCII_x_y and distKB_x_y
-	int distASCII_x_y = std::abs(static_cast<int>(charGenerated) - static_cast<int>(charOfTheState));
-	int distKB_x_y = std::min(distASCII_x_y, 26 - distASCII_x_y);
+	int distASCII_x_y = abs(static_cast<int>(charGenerated) - static_cast<int>(charOfTheState));
+	int distKB_x_y = min(distASCII_x_y, 26 - distASCII_x_y);
 
-	return constant_x * std::pow(1.0 / kbDegenerateDistancePower, distKB_x_y);
+	return constant_x * pow(1.0 / kbDegenerateDistancePower, distKB_x_y);
 	return 0;
 }
 
@@ -266,28 +266,36 @@ double prCharGivenCharOfState(char charGenerated, char charOfTheState)
 //     exactly the number characters in the word.
 /************************************************************************/
 
-void getPrTableForPossibleInitialStates(double prTable[], int sizeOfTable)
-{
-	//It is a word of sizeOfTable characters:
-	//     i.e. the number of character states is sizeOfTable.
-	//     let's index these characters from 0 to sizeOfTable-1.
-	//
+//getPrTableForPossibleInitialStates and  
 
-	//First calculate the sum of ratios of probabilities of
-	//     going from the special I state into these character states.
-	//This allows you to calculate the scaling factor to determine the probabilities.
+void getPrTableForPossibleInitialStates(double prTable[], int sizeOfTable) {
+		vector<int> missDistance(sizeOfTable);
+		vector<double> exponentialDegrade(sizeOfTable);
 
+		// Fill missDistance with values 1 to sizeOfTable
+		// [1,2,3,...,sizeOfTable]
+		for (int i = 0; i < sizeOfTable; ++i) {
+				missDistance[i] = i + 1;
+		}
 
-	//Second, for each character state calculate the probability
-	//     transitioning from the special I state into the character state.
+		// Compute exponentialDegrade
+		// 
+		for (int i = 0; i < sizeOfTable; ++i) {
+				exponentialDegrade[i] = pow(1.0 / kbDegenerateDistancePower, missDistance[i]);
+		}
 
-	//**************************************************
-	//Replace the following with your own implementation
-	//**************************************************
+		// Compute scaling constant
+		double sum = 0.0;
+		for (int i = 0; i < sizeOfTable; ++i) {
+				sum += exponentialDegrade[i];
+		}
+		double scalingConstant = 1.0 / sum;
 
+		// Fill prTable array with scaled values
+		for (int i = 0; i < sizeOfTable; ++i) {
+				prTable[i] = scalingConstant * exponentialDegrade[i];
+		}
 }
-
-
 
 
 /************************************************************************/
@@ -304,31 +312,42 @@ void getPrTableForPossibleInitialStates(double prTable[], int sizeOfTable)
 //     1 + the number characters in the word.
 /************************************************************************/
 
-void getPrTableForPossibleNextStates
-(double transitionPrTable[], int sizeOfTable, int currentState)
-{
-	//We are working on a word of sizeOfTable-1 characters:
-	//     i.e. the number of character states is sizeOfTable-1.
-	//Index these character states from 0 to sizeOfTable-2 respectively, while
-	//     the index of the special final state F is sizeOfTable-1.
-	//currentState is the index of the current state in the word
+void getPrTableForPossibleNextStates(double transitionPrTable[], int sizeOfTable, int currentState) {
+		vector<int> distances(sizeOfTable);
+		vector<double> exponentialDegrade(sizeOfTable);
 
-	//First calculate the sum of ratios of probabilities of
-	//     going from the current state into the other down-stream states down in word
-	//     including all the down-stream character states and the
-	//     special F final state.
-	//This allows you to calculate the scaling factor to determine the probabilities.
+		// Compute distances (states as indices are from 0 to sizeOfTable - 1)
+		for (int i = 0; i < sizeOfTable; ++i) {
+				distances[i] = i - currentState;
+		}
 
-	//Second, for each state (excluding the special I state)
-	//     calculate the probability of
-	//     transitioning from the current state into the character state
-	//     and store the probability into the table.
+		// Compute exponentialDegrade
+		for (int i = 0; i < sizeOfTable; ++i) {
+				if (distances[i] > 0) {
+						exponentialDegrade[i] = pow(1.0 / kbDegenerateDistancePower, distances[i]);
+				} else {
+						exponentialDegrade[i] = 0.0;
+				}
+		}
 
+		// Compute scaling constant
+		double sum = 0.0;
+		for (int i = 0; i < sizeOfTable; ++i) {
+				sum += exponentialDegrade[i];
+		}
+		double scalingConstant = prSpMoveOn / sum;
 
-	//**************************************************
-	//Replace the following with your own implementation
-	//**************************************************
+		// Fill transitionPrTable array with scaled values
+		for (int i = 0; i < sizeOfTable; ++i) {
+				transitionPrTable[i] = scalingConstant * exponentialDegrade[i];
+		}
 
+		// Set the probability of repeating the current state
+		transitionPrTable[currentState] = prSpRepeat;
 }
+
+
+
+
 
 
